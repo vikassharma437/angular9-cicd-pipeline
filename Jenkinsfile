@@ -11,7 +11,6 @@ pipeline {
     WORKDIR = pwd()
     nexusURL = "http://nexus-repository-manager-nexus.apps.cluster-89e8.89e8.sandbox1804.opentlc.com/repository/npm-releases"
     DEV_API_SERVER = "https://api.cluster-89e8.89e8.sandbox1804.opentlc.com:6443"
-    templatePath = "${WORKDIR}/config/template.json"
     buildconf = "false"
     dc = "false"
     routeProtocol = "HTTPS"
