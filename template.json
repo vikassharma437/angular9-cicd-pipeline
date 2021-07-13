@@ -1,0 +1,214 @@
+{
+		"kind": "Template",
+		"apiVersion": "template.openshift.io/v1",
+		"metadata": {
+				"name": "${APP_NAME}",
+				"annotations": {
+						"tags": "${APP_NAME}",
+						"iconClass": "icon-${APP_NAME}"
+				}
+		},
+		"labels": {
+				"template": "${APP_NAME}",
+				"app": "${APP_NAME}"
+		},
+		"objects": [
+        {
+           "kind": "BuildConfig",
+           "apiVersion": "v1",
+           "metadata": {
+              "name": "${APP_NAME}",
+              "labels": {
+                 "app": "${APP_NAME}"
+              }
+           },
+           "spec": {
+              "source": {
+                 "type": "Binary",
+                 "binary": {}
+              },
+              "strategy": {
+                 "type": "Source",
+                 "sourceStrategy": {
+                    "from": {
+                       "kind": "ImageStreamTag",
+                       "namespace": "openshift",
+                       "name": "nginx-118:latest"
+                    }
+                 }
+              },
+              "output": {
+                 "to": {
+                    "kind": "ImageStreamTag",
+                    "name": "${APP_NAME}:latest"
+                 }
+              },
+              "triggers": []
+           }
+        },
+        {
+           "kind": "ImageStream",
+           "apiVersion": "v1",
+           "metadata": {
+              "name": "${APP_NAME}",
+              "labels": {
+                 "app": "${APP_NAME}"
+              }
+           },
+           "spec": {
+              "lookupPolicy": {
+                  "local": false
+              }
+           }
+        },
+        {
+           "kind": "DeploymentConfig",
+           "apiVersion": "v1",
+           "metadata": {
+              "name": "${APP_NAME}",
+              "labels": {
+                 "app": "${APP_NAME}"
+              }
+           },
+           "spec": {
+              "replicas": 1,
+              "selector": {
+                 "name": "${APP_NAME}"
+              },
+              "strategy": {
+                 "rollingParams": {
+                    "maxSurge": "25%",
+                    "maxUnavailable": "25%"
+                 },
+                 "type": "Rolling"
+              },
+              "triggers": [
+                 {
+                    "type": "ImageChange",
+                    "imageChangeParams": {
+                       "automatic": true,
+                       "containerNames": [
+                          "${APP_NAME}"
+                       ],
+                       "from": {
+                          "kind": "ImageStreamTag",
+                          "name": "${APP_NAME}:latest"
+                       }
+                    }
+                 },
+                 {
+                    "type": "ConfigChange"
+                 }
+              ],
+              "template": {
+                 "metadata": {
+                    "labels": {
+                       "name": "${APP_NAME}"
+                    },
+                    "name": "${APP_NAME}"
+                 },
+                 "spec": {
+                    "containers": [
+                          {
+                          "name": "${APP_NAME}",
+                          "image": "image-registry.openshift-image-registry.svc:5000/${PROJECT}/${APP_NAME}:latest",
+                          "imagePullPolicy": "IfNotPresent",
+                          "env": [
+                             {
+                                "name": "TZ",
+                                "value": "Asia/Kolkata"
+                             }
+                          ],
+                          "ports": [
+                             {
+                                "containerPort": 8080,
+                                "protocol": "TCP"
+                             },
+                             {
+                                "containerPort": 8443,
+                                "protocol": "TCP"
+                             },
+                             {
+                                "containerPort": 8778,
+                                "protocol": "TCP"
+                             }
+                          ],
+                          "resources": {},
+                          "terminationMessagePath": "/dev/termination-log",
+                          "securityContext": {}
+                       }
+                    ]
+                 }
+              }
+           }
+        },
+        {
+            "kind": "Service",
+            "apiVersion": "v1",
+            "metadata": {
+                "name": "${APP_NAME}",
+                "labels": {
+                    "app": "${APP_NAME}"
+                },
+                "annotations": {
+                    "description": "Expose the Application."
+                }
+            },
+            "spec": {
+                "ports": [
+                    {
+                        "name": "8080-tcp",
+                        "port": 8080,
+                        "targetPort": 8080
+                    },
+                    {
+                        "name": "8443-tcp",
+                        "port": 8443,
+                        "targetPort": 8443
+                    },
+                    {
+                        "name": "8778-tcp",
+                        "port": 8778,
+                        "targetPort": 8778
+                    }
+                ],
+                "selector": {
+                  "name": "${APP_NAME}"
+                }
+            }
+        },
+        {
+             "kind": "Route",
+             "apiVersion": "v1",
+             "metadata": {
+                "name": "${APP_NAME}",
+                "labels": {
+                    "app": "${APP_NAME}"
+                },
+                "annotations": {
+                    "description": "Route for application's http service"
+                }
+             },
+             "spec": {
+                "port": {
+                    "targetPort": "8080-tcp"
+                },
+                "to": {
+                    "kind": "Service",
+                    "name": "${APP_NAME}"
+                }
+            }
+        }
+    ],
+		"parameters": [
+				{
+						"name": "APP_NAME",
+						"displayName": "Name of the Application."
+				},
+				{
+						"name": "PROJECT",
+						"displayName": "Project",
+						"description": "Environment to be deployed on."
+				}
+		]
+}

@@ -1,0 +1,78 @@
+#!bash
+pipeline {
+  agent {
+    label 'docker'
+  }
+  environment {
+    appName = "angular-ui"
+    buildconf = "false"
+    dc = "false"
+    DEV_NAMESPACE = "dev"
+    SIT_NAMESPACE = "sit"
+    DEV_API_SERVER= "https://api.cluster-89e8.89e8.sandbox1804.opentlc.com:6443"
+    routeProtocol = "HTTPS"
+  }
+  stages {
+    stage('Promote Image in SIT Namespace') {
+      steps {
+        script {
+          try {
+            withCredentials([usernamePassword(credentialsId: 'dev-ocp-credentials', passwordVariable: 'DEV_OCP_PASSWD', usernameVariable: 'DEV_OCP_USER')]) {
+              echo "Using Application: ${appName}"
+              sh('oc login -u $DEV_OCP_USER -p $DEV_OCP_PASSWD ${DEV_API_SERVER} -n ${SIT_NAMESPACE} --insecure-skip-tls-verify=true')
+              sh "oc tag ${DEV_NAMESPACE}/${appName}:latest ${SIT_NAMESPACE}/${appName}:latest -n ${SIT_NAMESPACE}"
+            }
+          } catch(e) {
+            print e.getMessage()
+            error "${SIT_NAMESPACE} promote stage having some issue. Please check logs for more details."
+          }
+        }
+      }
+    }
+    stage('Start Build to SIT Namespace') {
+      steps {
+        script {
+          try {
+            timeout(time: 600, unit: 'SECONDS') {
+              withCredentials([usernamePassword(credentialsId: 'dev-ocp-credentials', passwordVariable: 'DEV_OCP_PASSWD', usernameVariable: 'DEV_OCP_USER')]) {
+                sh('oc login -u $DEV_OCP_USER -p $DEV_OCP_PASSWD ${DEV_API_SERVER} -n ${SIT_NAMESPACE} --insecure-skip-tls-verify=true')
+                dc = sh(script: 'oc get dc ${appName} >> /dev/null 2>&1 && echo "true" || echo "false"', returnStdout: true)
+                dc = dc.trim()
+                echo "Deployment Config contains: '${dc}'"
+
+                if('true' == dc) {
+                  echo "Application already exist. Hence rolling out the latest updates on the same."
+                  sh """
+                  oc rollout resume dc ${appName} -n ${SIT_NAMESPACE}
+                  oc rollout status dc ${appName} -n ${SIT_NAMESPACE} -w
+                  oc rollout pause  dc ${appName} -n ${SIT_NAMESPACE}
+                  """
+                  echo "Application ${appName}:latest has been successfully deployed to ${SIT_NAMESPACE} namespace."
+                } else {
+                  echo "Deploying the ${appName}:latest application binary to ${SIT_NAMESPACE} namespace"
+                  sh """
+                  oc new-app ${appName}:latest --as-deployment-config -n ${SIT_NAMESPACE}
+                  oc rollout status dc ${appName} -n ${SIT_NAMESPACE} -w
+                  oc rollout pause  dc ${appName} -n ${SIT_NAMESPACE}
+                  """
+                  echo "Application ${appName}:latest deployed successfully to ${SIT_NAMESPACE} namespace."
+
+                  if(routeProtocol == 'HTTPS') {
+                    sh "oc create route edge ${appName} --service ${appName} -n ${SIT_NAMESPACE}"
+                    echo "Application ${appName}:latest has been exposed through HTTPS protocol"
+                  } else {
+                    sh "oc expose svc/${appName} -n ${SIT_NAMESPACE}"
+                    echo "Application ${appName}:latest has been exposed through HTTP protocol"
+                  }
+                }
+              }
+            }
+          } catch(e) {
+            print e.getMessage()
+            error "${SIT_NAMESPACE} start build stage having some issue. Please check logs for more details."
+          }
+        }
+      }
+    }
+  }
+}
