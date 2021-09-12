@@ -25,3 +25,23 @@ Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To u
 ## Further help
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+
+## Build the Application using Jenkins and Deploy on OpenShift
+
+I have not covered here about how to install Jenkins on Openshift. I simply covered here about how to deploy pipeline using CICD tools like Jenkins.
+
+You can use Jenkinsfile to build and deploy the application on different namespaces like DEV, SIT, UAT, TRAINING and PERF environment.
+
+1. Add Publish Registry in package.json file as specified below. This will allow you to download the dependencies from external urls through Nexus in case your server is running behind the proxy.
+   
+"publishConfig": {
+  "registry": "http://nexus-repository-manager-nexus.apps.cluster-89e8.89e8.sandbox1804.opentlc.com/repository/npm-releases/"
+},
+  
+2. Add Jenkinsfile, sitJenkinsfile and uatJenkinsfile for running the build pipeline on different environments as this is not the continous build pipeline example. We are using here the different Jenkinsfile as per environment.
+
+3. Jenkinsfile will prepare builds, install NPM dependencies and promote the builded image on the specified namespace in Openshift cluster.
+
+4. sitJenkinsfile will be used to copy and tag the DEV namespace builded image to SIT namespace as both the namespaces are in same environment.
+
+5. uatJenkinsfile will be used to promote the image in UAT, PT and TRAINING namespace in all together separate cluster.
