@@ -26,6 +26,14 @@ Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To u
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
 
+## Prerequisite for CICD
+
+1. Two Openshift clusters.
+2. Install Jenkins on one cluster.
+3. Install Nexus Repository Manager on another cluster.
+4. Create Dev, SIT and Training namespace on cluster where Nexus is installed.
+5. Create UAT and PERF namespace on cluster where Jenkins is Installed.
+
 ## Build the Application using Jenkins and Deploy on OpenShift
 
 I have not covered here about how to install Jenkins on Openshift. I simply covered here about how to deploy pipeline using CICD tools like Jenkins.
